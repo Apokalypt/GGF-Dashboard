@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "api/index.php": {
+      "runtime": "vercel-php@0.6.2"
+    }
+  },
+  "routes": [
+    { "src": "/favicon.ico", "dest": "/assets/favicon.ico" },
+    { "src": "/assets/(.*)",  "dest": "/assets/$1" },
+    { "src": "/(.*)", "dest": "/api/index.php" }
+  ]
+}

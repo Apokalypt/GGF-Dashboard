@@ -1,0 +1,15 @@
+# PHP
+/vendor
+
+# Vercel
+.vercel
+
+# Env
+.env*
+.flaskenv*
+!.env.project
+!.env.vault
+
+# Git
+.gitignore
+.git
