@@ -1,6 +1,9 @@
 {
-    "require": {
-        "mongodb/mongodb": "^1.19",
-        "dotenv-org/phpdotenv-vault": "^0.2.4"
-    }
+  "require": {
+    "mongodb/mongodb": "^1.19",
+    "dotenv-org/phpdotenv-vault": "^0.2.4",
+    "ext-curl": "*",
+    "ext-fileinfo": "*",
+    "ext-openssl": "*"
+  }
 }
