@@ -145,8 +145,6 @@ function gen_state(): string
 function get_authorize_endpoint($client_id, $redirect, $scope): string
 {
     $state = gen_state();
-    $expires_in_one_year = time() + 60 * 60 * 24 * 365;
-    setcookie("client_id", $client_id, $expires_in_one_year, "/");
     return 'https://discordapp.com/oauth2/authorize?response_type=code&prompt=none&client_id=' . $client_id . '&redirect_uri=' . $redirect . '&scope=' . $scope . "&state=" . $state;
 }
 
