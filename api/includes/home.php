@@ -19,7 +19,7 @@ if (user_is_authorized($guild_id, $moderator_role_id)) {
 </head>
 <body>
 <main class="p-0 base">
-    <a class="btn btn-lg btn-discord btn-block" href="<?=$auth_url = url($client_id, $redirect_url, $scopes)?>">SE CONNECTER</a>
+    <a class="btn btn-lg btn-discord btn-block" href="<?=$auth_url = get_authorize_endpoint($client_id, $redirect_url, $scopes)?>">SE CONNECTER</a>
 </main>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha2/js/bootstrap.bundle.min.js" integrity="sha384-BOsAfwzjNJHrJ8cZidOg56tcQWfp6y72vEJ8xQ9w6Quywb24iOsW913URv1IS4GD" crossorigin="anonymous"></script>
 </body>

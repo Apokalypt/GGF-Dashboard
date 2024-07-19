@@ -13,6 +13,8 @@ if (!user_is_authorized($guild_id, $moderator_role_id)) {
 
 require __DIR__ . "/../modules/database.php";
 
+# Fetch the data before starting to send HTML page to avoid any issues
+$current_qna = fetch_guild_QNA($guild_id);
 ?>
 
 <!DOCTYPE html>
@@ -217,8 +219,6 @@ require __DIR__ . "/../modules/database.php";
     });
 
     <?php
-    $current_qna = fetch_guild_QNA($guild_id);
-
     $categories = [];
     $index = 1;
     foreach($current_qna as $qna) {

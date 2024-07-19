@@ -1,28 +1,73 @@
 <?php
 
 $GLOBALS['base_url'] = "https://discord.com/api/v10";
+$GLOBALS['delta_time_expire'] = 60; // 60 seconds
 
 ##################################################################
 ## Authentication
 ##################################################################
-
-# A function to generate a random string to be used as state | (protection against CSRF)
-function gen_state(): string
+/**
+ * Return the formatted token found in the cookies or refresh the token if it is not found
+ *
+ * @return string|null
+ */
+function get_token_formatted(): string | null
 {
-    $_SESSION['state'] = bin2hex(openssl_random_pseudo_bytes(12));
-    return $_SESSION['state'];
+    if (!isset($_COOKIE['access_token']) || !isset($_COOKIE['token_type'])) {
+        refresh_token();
+    }
+
+    if (isset($_COOKIE['access_token']) && isset($_COOKIE['token_type'])) {
+        return $_COOKIE['token_type'] . ' ' . $_COOKIE['access_token'];
+    } else {
+        return null;
+    }
 }
 
-# A function to generate oAuth2 URL for logging in
-function url($clientid, $redirect, $scope): string
+/**
+ * Call the Discord token endpoint, set the cookies and return true if it's successful
+ *
+ * @param array $data
+ * @return bool
+ */
+function call_token_endpoint(array $data): bool
 {
-    $state = gen_state();
-    $_SESSION['client_id'] = $clientid;
-    return 'https://discordapp.com/oauth2/authorize?response_type=code&client_id=' . $clientid . '&redirect_uri=' . $redirect . '&scope=' . $scope . "&state=" . $state;
+    $url = $GLOBALS['base_url'] . "/oauth2/token";
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_URL, $url);
+    curl_setopt($curl, CURLOPT_POST, true);
+    curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    if (curl_getinfo($curl, CURLINFO_HTTP_CODE) != 200) {
+        return false;
+    }
+
+    $results = json_decode($response, true);
+    if (!isset($results['access_token'])) {
+        return false;
+    }
+
+    $expires_at = time() + $results['expires_in'] - $GLOBALS['delta_time_expire'];
+    setcookie("access_token", $results['access_token'], $expires_at, "/");
+    setcookie("token_type", $results['token_type'], $expires_at, "/");
+    $expires_in_one_year = time() + 60 * 60 * 24 * 365;
+    setcookie("refresh_token", $results['refresh_token'], $expires_in_one_year, "/");
+
+    return true;
 }
 
-# A function to initialize and store access token in SESSION to be used for other requests
-function init($redirect_url, $client_id, $client_secret): bool
+/**
+ * Try to fetch the user's token and return true if it's successful
+ *
+ * @param $redirect_url
+ * @param $client_id
+ * @param $client_secret
+ * @return bool
+ */
+function authenticate_user($redirect_url, $client_id, $client_secret): bool
 {
     if (!isset($_GET['code']) || !isset($_GET['state'])) {
         return false;
@@ -34,8 +79,6 @@ function init($redirect_url, $client_id, $client_secret): bool
         return false;
     }
 
-    # Check if $state == $_SESSION['state'] to verify if the login is legit | CHECK THE FUNCTION get_state($state) FOR MORE INFORMATION.
-    $url = $GLOBALS['base_url'] . "/oauth2/token";
     $data = array(
         "client_id" => $client_id,
         "client_secret" => $client_secret,
@@ -43,68 +86,84 @@ function init($redirect_url, $client_id, $client_secret): bool
         "code" => $code,
         "redirect_uri" => $redirect_url
     );
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt($curl, CURLOPT_POST, true);
-    curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($curl);
-    curl_close($curl);
-
-    if (curl_getinfo($curl, CURLINFO_HTTP_CODE) != 200) {
-        return false;
-    }
-
-    $results = json_decode($response, true);
-    if (!isset($results['access_token'])) {
-        return false;
-    }
-
-    $_SESSION['token_type'] = $results['token_type'];
-    $_SESSION['access_token'] = $results['access_token'];
-    $_SESSION['expires_at'] = time() + $results['expires_in'];
-    $_SESSION['refresh_token'] = $results['refresh_token'];
-
-    return true;
+    return call_token_endpoint($data);
 }
 
+/**
+ * Refresh the token if it's possible and return true if it's successful
+ *
+ * @return bool
+ */
 function refresh_token(): bool
 {
-    $url = $GLOBALS['base_url'] . "/oauth2/token";
+    if (!isset($_COOKIE['refresh_token'])) {
+        return false;
+    }
+
     $data = array(
         "grant_type" => "refresh_token",
-        "refresh_token" => $_SESSION['refresh_token']
+        "refresh_token" => $_COOKIE['refresh_token']
     );
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt($curl, CURLOPT_POST, true);
-    curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($curl);
-    curl_close($curl);
+    return call_token_endpoint($data);
+}
 
-    if (curl_getinfo($curl, CURLINFO_HTTP_CODE) != 200) {
+/**
+ * Check if the state in session is the same as the one passed as parameter
+ *
+ * @param $state
+ * @return bool
+ */
+function check_state($state): bool
+{
+    if ($state == $_SESSION['state']) {
+        return true;
+    } else {
         return false;
     }
+}
 
-    $results = json_decode($response, true);
-    if (!isset($results['access_token'])) {
-        return false;
-    }
+/**
+ * Generate a random state and store it in the session to validate the redirection on the auth endpoint
+ *
+ * @return string
+ */
+function gen_state(): string
+{
+    $_SESSION['state'] = bin2hex(openssl_random_pseudo_bytes(12));
 
-    $_SESSION['token_type'] = $results['token_type'];
-    $_SESSION['access_token'] = $results['access_token'];
-    $_SESSION['expires_at'] = time() + $results['expires_in'];
-    $_SESSION['refresh_token'] = $results['refresh_token'];
+    return $_SESSION['state'];
+}
 
-    return true;
+/**
+ * Generate the authorize endpoint with the client_id, redirect_uri, scope and all the necessary parameters
+ *
+ * @param $client_id
+ * @param $redirect
+ * @param $scope
+ * @return string
+ */
+function get_authorize_endpoint($client_id, $redirect, $scope): string
+{
+    $state = gen_state();
+    $expires_in_one_year = time() + 60 * 60 * 24 * 365;
+    setcookie("client_id", $client_id, $expires_in_one_year, "/");
+    return 'https://discordapp.com/oauth2/authorize?response_type=code&prompt=none&client_id=' . $client_id . '&redirect_uri=' . $redirect . '&scope=' . $scope . "&state=" . $state;
 }
 
 
-function get_member_details($guild_id)
+##################################################################
+## Data
+##################################################################
+/**
+ * Retrieve the member details from the Discord API
+ *
+ * @param $guild_id
+ * @return mixed|null
+ */
+function get_member_details($guild_id): mixed
 {
     $url = $GLOBALS['base_url'] . "/users/@me/guilds/" . $guild_id . "/member";
-    $headers = array('Content-Type: application/x-www-form-urlencoded', 'Authorization: ' . $_SESSION['token_type'] . ' ' . $_SESSION['access_token']);
+    $headers = array('Content-Type: application/x-www-form-urlencoded', 'Authorization: ' . get_token_formatted());
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_URL, $url);
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
@@ -122,20 +181,24 @@ function get_member_details($guild_id)
     return $_SESSION['member'];
 }
 
+##################################################################
+## Authorization
+##################################################################
+/**
+ * Make sure the user is authorized to access the page
+ *
+ * @param $guild_id
+ * @param $moderator_role_id
+ * @return bool
+ */
 function user_is_authorized($guild_id, $moderator_role_id): bool
 {
     global $client_id;
 
-    # If the 'expires_at' is less than the current time, then the token has expired. Refresh it.
-    if (isset($_SESSION['expires_at']) && $_SESSION['expires_at'] < time()) {
-        error_log("Access token has expired. Refreshing token");
-        refresh_token();
-    }
-
-    if (!isset($_SESSION['access_token'])) {
+    if (!isset($_COOKIE['access_token'])) {
         return false;
     }
-    if (!isset($_SESSION['client_id']) || $_SESSION['client_id'] != $client_id) {
+    if (!isset($_COOKIE['client_id']) || $_COOKIE['client_id'] != $client_id) {
         return false;
     }
 
@@ -153,15 +216,4 @@ function user_is_authorized($guild_id, $moderator_role_id): bool
     }
 
     return true;
-}
-
-# A function to verify if login is legit
-function check_state($state): bool
-{
-    if ($state == $_SESSION['state']) {
-        return true;
-    } else {
-        # The login is not valid, so you should probably redirect them back to home page
-        return false;
-    }
 }
