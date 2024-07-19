@@ -28,16 +28,20 @@ function update_guild_QNA($guild_id, $qna): bool
 {
     global $collection;
 
-    // Update the document in MongoDB
-    $result = $collection->updateOne(
-        ['_id' => $guild_id],
-        ['$set' => ['qna' => $qna]]
-    );
+    try {
+        $result = $collection->updateOne(
+            ['_id' => $guild_id],
+            ['$set' => ['qna' => $qna]]
+        );
 
-    // Check if update was successful
-    if ($result->getModifiedCount() > 0) {
-        return true;
-    } else {
+        if ($result->getMatchedCount() > 0) {
+            return true;
+        } else {
+            error_log('Failed to update QNA in MongoDB, no document found for guild ID: ' . $guild_id);
+            return false;
+        }
+    } catch (Exception $e) {
+        error_log('An error occurred while trying to save the new QNA: ' . $e->getMessage());
         return false;
     }
 }
