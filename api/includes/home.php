@@ -2,7 +2,7 @@
 
 require __DIR__ . "/../modules/discord.php";
 
-global $client_id, $secret_id, $guild_id, $moderator_role_id, $redirect_url, $scopes;
+global $client_id, $client_secret, $guild_id, $moderator_role_id, $redirect_url, $scopes;
 
 if (user_is_authorized($guild_id, $moderator_role_id)) {
     header('Location: /dashboard');

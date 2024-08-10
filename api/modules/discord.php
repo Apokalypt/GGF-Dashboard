@@ -52,9 +52,13 @@ function call_token_endpoint(array $data): bool
 
     $expires_at = time() + $results['expires_in'] - $GLOBALS['delta_time_expire'];
     setcookie("access_token", $results['access_token'], $expires_at, "/");
+    $_COOKIE['access_token'] = $results['access_token']; // Force update for the current page load
     setcookie("token_type", $results['token_type'], $expires_at, "/");
+    $_COOKIE['token_type'] = $results['token_type']; // Force update for the current page load
+
     $expires_in_one_year = time() + 60 * 60 * 24 * 365;
     setcookie("refresh_token", $results['refresh_token'], $expires_in_one_year, "/");
+    $_COOKIE['refresh_token'] = $results['refresh_token']; // Force update for the current page load
 
     return true;
 }
@@ -62,13 +66,12 @@ function call_token_endpoint(array $data): bool
 /**
  * Try to fetch the user's token and return true if it's successful
  *
- * @param $redirect_url
- * @param $client_id
- * @param $client_secret
  * @return bool
  */
-function authenticate_user($redirect_url, $client_id, $client_secret): bool
+function authenticate_user(): bool
 {
+    global $client_id, $client_secret, $redirect_url;
+
     if (!isset($_GET['code']) || !isset($_GET['state'])) {
         return false;
     }
@@ -96,11 +99,15 @@ function authenticate_user($redirect_url, $client_id, $client_secret): bool
  */
 function refresh_token(): bool
 {
+    global $client_id, $client_secret;
+
     if (!isset($_COOKIE['refresh_token'])) {
         return false;
     }
 
     $data = array(
+        "client_id" => $client_id,
+        "client_secret" => $client_secret,
         "grant_type" => "refresh_token",
         "refresh_token" => $_COOKIE['refresh_token']
     );
@@ -193,7 +200,7 @@ function user_is_authorized($guild_id, $moderator_role_id): bool
 {
     global $client_id;
 
-    if (!isset($_COOKIE['access_token'])) {
+    if (get_token_formatted() == null) {
         return false;
     }
     if (!isset($_COOKIE['client_id']) || $_COOKIE['client_id'] != $client_id) {

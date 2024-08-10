@@ -11,6 +11,7 @@ require __DIR__ . "/config.php";
 global $client_id;
 $expires_in_one_year = time() + 60 * 60 * 24 * 365;
 setcookie("client_id", $client_id, $expires_in_one_year, "/");
+$_COOKIE['client_id'] = $client_id; // Force update for the current page load
 
 # Extract the path from the URL
 $path = $_SERVER['REQUEST_URI'];

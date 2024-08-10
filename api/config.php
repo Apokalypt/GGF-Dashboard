@@ -3,7 +3,7 @@
 $client_id = $_SERVER['GGF_DASHBOARD_CLIENT_ID'];
 
 # CLIENT SECRET
-$secret_id = $_SERVER['GGF_DASHBOARD_SECRET'];
+$client_secret = $_SERVER['GGF_DASHBOARD_SECRET'];
 
 # SCOPES SEPARATED BY + SIGN
 $scopes = "identify+guilds.members.read	";
