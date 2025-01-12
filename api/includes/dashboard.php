@@ -311,12 +311,15 @@ $current_qna = fetch_guild_QNA($guild_id);
             const categoryEmoji = categoryObj ? categoryObj.emoji : '';
 
             const questionsHtml = groupedQuestions[category].map(q => {
+                const answer = q.answer.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
                 return `
                 <li class="list-group-item">
                     <div class="d-flex justify-content-between align-items-start w-100">
                         <div class="flex-grow-1">
                             <b>${q.question}</b>
-                            <p class="mb-0"><pre class="mb-0 answer-pre">${q.answer}</pre></p>
+                            <p class="mb-0"><pre class="mb-0 answer-pre">${answer}</pre></p>
                         </div>
                         <div class="button-group">
                             <button class="btn btn-info btn-sm mr-2" onclick="editQuestion(${q.id})">Modifier</button>
