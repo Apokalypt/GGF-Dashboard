@@ -14,3 +14,4 @@
 !.env.project
 !.env.vault
 !.env.example
+.vercel
